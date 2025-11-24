@@ -1,6 +1,6 @@
 {
     "name": "daytwo/blazing-cache",
-    "description": "Blazing Cache - minimal Blitz-like static page cache (DigitalOcean-first MVP)",
+    "description": "A Craft CMS plugin that adds blazing fast Cache capabilities",
     "type": "craft-plugin",
     "license": "proprietary",
     "support": {
