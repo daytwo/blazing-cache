@@ -1,0 +1,10 @@
+{#
+Macro to register a dependency for the current page during render.
+Usage:
+{% from "_macros/dependency.twig" import depends_on %}
+{{ depends_on('entry', entry.id, craft.app.request.getUrl()) }}
+#}
+
+{% macro depends_on(elementType, elementId, uri) %}
+    {% do blazing_cache_depends_on(elementType, elementId, uri) %}
+{% endmacro %}

@@ -1,0 +1,49 @@
+{
+    "name": "daytwo/blazing-cache",
+    "description": "Blazing Cache - minimal Blitz-like static page cache (DigitalOcean-first MVP)",
+    "type": "craft-plugin",
+    "license": "proprietary",
+    "support": {
+        "email": "tech@daytwo.no",
+        "issues": "https://github.com/daytwo/blazing-cache/issues?state=open",
+        "source": "https://github.com/daytwo/blazing-cache",
+        "docs": "https://github.com/daytwo/blazing-cache",
+        "rss": "https://github.com/daytwo/blazing-cache/releases.atom"
+    },
+    "autoload": {
+        "psr-4": {
+            "daytwo\\blazingcache\\": "src/"
+        }
+    },
+    "require": {
+        "craftcms/cms": "^5.0"
+    },
+    "require-dev": {
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main"
+    },
+    "extra": {
+    "handle": "blazing-cache",
+    "name": "Blazing Cache",
+    "version": "1.0.0",
+    "description": "A Craft CMS plugin that adds blazing fast Cache capabilities",
+    "developer": "Paulo Paes",
+    "developerUrl": "https://daytwo.no",
+    "class": "daytwo\\blazingcache\\BlazingCache"
+    },
+    "scripts": {
+        "check-cs": "ecs check --ansi",
+        "fix-cs": "ecs check --ansi --fix",
+        "phpstan": "phpstan --memory-limit=1G"
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.0.2"
+        },
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true
+        }
+    }
+}

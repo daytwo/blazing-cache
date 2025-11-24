@@ -1,0 +1,49 @@
+{% import '_includes/forms.twig' as forms %}
+
+{{ forms.booleanMenuField({
+    label: 'Enable Blazing Cache',
+    id: 'enabled',
+    name: 'enabled',
+    value: settings.enabled,
+    includeEnvVars: true,
+    errors: settings.getErrors('enabled')
+}) }}
+
+{% set resolvedEnabled = settings.getEnabledBool() %}
+<p class="light">Resolved value: <strong>{{ resolvedEnabled ? 'Enabled' : 'Disabled' }}</strong></p>
+
+{{ forms.autosuggestField({
+    label: 'Cache Path',
+    name: 'cachePath',
+    value: settings.cachePath,
+    instructions: 'Path where cached files will be stored (aliases + $ENV_VAR supported).',
+    suggestEnvVars: true,
+    suggestAliases: true,
+}) }}
+
+{{ forms.autosuggestField({
+    label: 'DigitalOcean API Token',
+    name: 'doApiToken',
+    value: settings.doApiToken,
+    instructions: 'Provide the literal token or choose an env var reference.',
+    suggestEnvVars: true,
+    type: 'password',
+}) }}
+
+{% set resolvedDoToken = settings.resolveEnv(settings.doApiToken) %}
+{% if resolvedDoToken %}
+    <p class="light">Resolved value: <code>{{ resolvedDoToken|slice(0, 6) ~ '••••' }}</code></p>
+{% endif %}
+
+{{ forms.autosuggestField({
+    label: 'DigitalOcean CDN Endpoint',
+    name: 'doCdnEndpoint',
+    value: settings.doCdnEndpoint,
+    instructions: 'Enter the endpoint URL or pick an env var reference.',
+    suggestEnvVars: true,
+}) }}
+
+{% set resolvedDoEndpoint = settings.resolveEnv(settings.doCdnEndpoint) %}
+{% if resolvedDoEndpoint %}
+    <p class="light">Resolved value: <code>{{ resolvedDoEndpoint }}</code></p>
+{% endif %}
