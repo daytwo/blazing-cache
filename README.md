@@ -71,6 +71,16 @@ return [
 
 Supplying a DigitalOcean API token and endpoint in the plugin settings queues purge jobs for every invalidated URL (falling back to synchronous purge if the queue is unavailable).
 
+### Console commands
+
+Run Blazing Cache console actions with `php craft blazing-cache/cache/<command>`:
+
+- `generate [uri] --siteId=1 [--enqueue=1]` – render a single URI immediately or enqueue a warm-up job when the queue is running. Defaults to `/` on the primary site.
+- `clear [uri] --siteId=1 [--all=1]` – delete a cached URI, clear an entire host, or wipe every cached host by combining `--all=1` with `--siteId=*`.
+- `purge --urls='/,/news/latest' [--dry=1] [--enqueue=1]` – purge one or more absolute URLs from the configured CDN. Requires DigitalOcean credentials in the plugin settings.
+
+Use the short aliases `-s`, `-e`, `-a`, `-u`, and `-d` if you prefer concise flags (e.g. `php craft blazing-cache/cache/generate /about -s=2 -e=1`). When `--enqueue=1` is provided, the command pushes a job onto Craft’s queue and returns immediately; otherwise it runs inline.
+
 ## Environment configuration
 
 Declare the cache-related environment variables in `.env` so you can toggle behaviour per environment and avoid checking secrets into git:
@@ -120,6 +130,16 @@ location @craft {
 ```
 
 Requests that are not simple `GET`/`HEAD` requests without Craft cookies fall straight through to `@craft`. When the variables resolve to empty strings, `try_files` ignores them and immediately hands control to the Craft fallback. Tweak the maps to match your own Login/preview rules.
+
+## CDN deployment checklist
+
+Pair the on-disk cache with a pull CDN so public traffic stays fast while editors work against the origin:
+
+- **Domain split** – point `admin.example.com` (or similar) straight at Craft for the control panel, and map the public hostname (e.g. `example.com`) to your CDN endpoint. Redirect any `www` host to the bare domain before it hits Craft.
+- **Origin config** – the CDN origin should remain your Craft server so it can fetch cache files from `web/blazing-cache`. Ensure TLS certificates cover the CDN hostname.
+- **Bypass sensitive paths** – add CDN rules or headers to disable caching for `/admin`, `/actions/*`, `/cpresources/*`, and requests with `CraftSessionId`, `CraftAuth`, or `CraftToken` cookies.
+- **Purge integration** – supply `BLAZING_CACHE_DO_API_TOKEN` and `BLAZING_CACHE_DO_CDN_ENDPOINT` so Blazing Cache can call the DigitalOcean CDN purge API whenever pages change. Keep queue workers running to process purge jobs.
+- **Warm-up strategy** – optional but recommended: use the bundled generator command (`php craft blazing-cache/cache/generate`) to pre-fill popular pages before pointing real users at the CDN.
 
 ## Expose cached files to the web server
 
