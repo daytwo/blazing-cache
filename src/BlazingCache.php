@@ -64,7 +64,7 @@ class BlazingCache extends Plugin
                 }
 
                 $request = Craft::$app->getRequest();
-                if (!$request->getIsSiteRequest() || !$request->getIsGet() || $request->getIsPreview()) {
+                if (!$this->isRequestCacheable($request)) {
                     return;
                 }
 
@@ -92,7 +92,7 @@ class BlazingCache extends Plugin
                 }
 
                 $request = Craft::$app->getRequest();
-                if (!$request->getIsSiteRequest() || !$request->getIsGet() || $request->getIsPreview()) {
+                if (!$this->isRequestCacheable($request)) {
                     return;
                 }
 
@@ -542,6 +542,148 @@ class BlazingCache extends Plugin
     public function cacheService(): CacheService
     {
         return $this->get('cacheService');
+    }
+
+    private function isRequestCacheable(Request $request): bool
+    {
+        try {
+            if (!$request->getIsSiteRequest() || !$request->getIsGet() || $request->getIsPreview()) {
+                return false;
+            }
+
+            $routeCandidates = $this->requestRouteCandidates($request);
+            if (empty($routeCandidates)) {
+                $routeCandidates = [''];
+            }
+
+            foreach ($routeCandidates as $route) {
+                if ($this->isHardExcludedRoute($route)) {
+                    return false;
+                }
+            }
+
+            $settings = $this->getSettings();
+            $patterns = $settings->includedUriPatterns ?? [];
+            if (!is_array($patterns) || $patterns === []) {
+                return true;
+            }
+
+            $currentSiteId = null;
+            try {
+                $currentSite = Craft::$app->getSites()->getCurrentSite();
+                $currentSiteId = $currentSite ? (int) $currentSite->id : null;
+            } catch (\Throwable) {
+                // Keep null and continue with global-only pattern rows.
+            }
+
+            $hasApplicablePattern = false;
+
+            foreach ($patterns as $patternRow) {
+                $regex = null;
+
+                if (is_string($patternRow)) {
+                    $regex = trim($patternRow);
+                } elseif (is_array($patternRow)) {
+                    $rawPattern = $patternRow['uriPattern'] ?? null;
+                    if (!is_string($rawPattern)) {
+                        continue;
+                    }
+
+                    if (!$this->patternAppliesToSite($patternRow['siteId'] ?? null, $currentSiteId)) {
+                        continue;
+                    }
+
+                    $regex = trim($rawPattern);
+                }
+
+                if ($regex === null || $regex === '') {
+                    continue;
+                }
+
+                $hasApplicablePattern = true;
+
+                foreach ($routeCandidates as $route) {
+                    $matched = $this->matchesIncludedUriPattern($regex, $route);
+
+                    if ($matched === 1) {
+                        return true;
+                    }
+                }
+            }
+
+            if (!$hasApplicablePattern) {
+                return false;
+            }
+
+            return false;
+        } catch (\Throwable) {
+            // Fail safe: if anything in matching/parsing fails, bypass cache.
+            return false;
+        }
+    }
+
+    private function requestRouteCandidates(Request $request): array
+    {
+        $candidates = [];
+
+        $pathInfo = trim((string) $request->getPathInfo(), '/');
+        $candidates[] = $pathInfo;
+
+        $pathParam = Craft::$app->getConfig()->getGeneral()->pathParam ?? 'p';
+        $pathParamRoute = $request->getQueryParam($pathParam);
+
+        if (is_string($pathParamRoute)) {
+            $pathParamRoute = trim($pathParamRoute, '/');
+            if ($pathParamRoute !== '') {
+                $candidates[] = $pathParamRoute;
+            }
+        }
+
+        return array_values(array_unique($candidates));
+    }
+
+    private function isHardExcludedRoute(string $route): bool
+    {
+        $normalized = ltrim($route, '/');
+        return (bool) preg_match('~^(actions|queue/run|admin|cpresources)(?:/|$)~i', $normalized);
+    }
+
+    private function patternAppliesToSite(mixed $siteIdSetting, ?int $currentSiteId): bool
+    {
+        if ($siteIdSetting === null || $siteIdSetting === '' || $siteIdSetting === '*' || $siteIdSetting === ['*']) {
+            return true;
+        }
+
+        if ($currentSiteId === null) {
+            return false;
+        }
+
+        $siteIds = is_array($siteIdSetting) ? $siteIdSetting : [$siteIdSetting];
+        foreach ($siteIds as $siteId) {
+            if ((int) $siteId === $currentSiteId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function matchesIncludedUriPattern(string $regex, string $route): int|false
+    {
+        $regex = trim($regex);
+        if ($regex === '') {
+            return false;
+        }
+
+        // Allow both raw patterns (e.g. ".*") and fully-delimited regex.
+        $first = $regex[0];
+        $hasDelimiter = !ctype_alnum($first) && str_contains(substr($regex, 1), $first);
+
+        if ($hasDelimiter) {
+            return @preg_match($regex, $route);
+        }
+
+        return @preg_match('~' . $regex . '~i', $route);
     }
 
     private function buildCacheKey(Request $request): string
