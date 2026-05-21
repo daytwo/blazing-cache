@@ -1,5 +1,7 @@
 # Blazing Cache
 
+> Branch note: `support/craft4` targets Craft CMS 4. For Craft CMS 5, use the `main` branch.
+
 Blazing Cache provides static-page caching for Craft CMS while staying out of the editor’s way. It serves cached HTML responses on GET requests, writes fresh cache copies after each render, and automatically purges affected pages whenever entries or assets change.
 
 ## Features
