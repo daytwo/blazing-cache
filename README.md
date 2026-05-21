@@ -164,3 +164,23 @@ Run this during provisioning/deploys so the link survives fresh checkouts. Ensur
 ## Contributing
 
 Issues and pull requests are welcome. Common extensions include alternative CDN purgers, additional cache backends, and tooling around dependency management.
+
+## Branching and releases
+
+Use separate long-lived branches for each Craft major so compatibility stays explicit and predictable:
+
+- `main` targets Craft CMS 5.
+- `support/craft4` targets Craft CMS 4.
+
+Recommended workflow:
+
+1. Build features and fixes on `main` first.
+2. Backport selected commits to `support/craft4` with `git cherry-pick` when they are Craft 4 compatible.
+3. Keep branch-specific fixes isolated to their target branch when needed.
+
+Versioning strategy:
+
+- Publish Craft 5 releases from `main` using a `1.x` series.
+- Publish Craft 4 releases from `support/craft4` using a dedicated maintenance series (for example `0.4.x`).
+
+When opening pull requests, state the target branch explicitly and note whether a backport is required.
