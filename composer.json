@@ -25,7 +25,7 @@
     "extra": {
     "handle": "blazing-cache",
     "name": "Blazing Cache",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "description": "A Craft CMS plugin that adds blazing fast Cache capabilities",
     "developer": "Paulo Paes",
     "developerUrl": "https://daytwo.no",
