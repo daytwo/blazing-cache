@@ -691,9 +691,21 @@ class BlazingCache extends Plugin
         $path = trim($request->getPathInfo(), '/');
         $path = $path === '' ? 'index' : $path;
 
+        // Extract page number from path segments and query params
+        $pageNumber = $this->extractPageNumber($request, $path);
+        
+        // Remove page segments from path if they exist
+        if ($pageNumber > 1) {
+            $path = preg_replace('~/p\d+$~', '', $path);
+            if ($path === '') {
+                $path = 'index';
+            }
+        }
+
         $queryParams = $request->getQueryParams();
         $pathParam = Craft::$app->getConfig()->getGeneral()->pathParam ?? 'p';
         unset($queryParams[$pathParam]);
+        unset($queryParams['page']); // Remove page query param if present
 
         if ($queryParams) {
             $normalized = $this->normalizeQueryParams($queryParams);
@@ -701,7 +713,36 @@ class BlazingCache extends Plugin
             $path .= '/__qs/' . $hash;
         }
 
+        // Append page number to cache key only when page > 1
+        if ($pageNumber > 1) {
+            $path .= '/__page/' . $pageNumber;
+        }
+
         return $path;
+    }
+
+    /**
+     * Extract page number from request path segments or query parameters.
+     * Handles pagination patterns like /p2, /p3 or query params like ?page=2
+     *
+     * @return int Page number, defaults to 1 if not paginated
+     */
+    private function extractPageNumber(Request $request, string $path): int
+    {
+        $pageNumber = 1;
+
+        // Check for page segment in path (e.g., /archive/p2)
+        if (preg_match('~/p(\d+)$~', $path, $matches)) {
+            $pageNumber = max($pageNumber, (int) $matches[1]);
+        }
+
+        // Check for page query parameter
+        $queryPage = $request->getQueryParam('page');
+        if ($queryPage !== null && is_numeric($queryPage)) {
+            $pageNumber = max($pageNumber, (int) $queryPage);
+        }
+
+        return $pageNumber;
     }
 
     private function normalizeQueryParams(array $params): array
