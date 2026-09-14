@@ -72,6 +72,32 @@ class CacheService extends Component
         return false;
     }
 
+    /**
+     * Removes paginated and query-string variants cached beneath a page URI.
+     *
+     * Blazing stores these as `<pageDir>/__page/<n>/index.html` and
+     * `<pageDir>/__qs/<hash>/index.html`, so clearing a listing only needs the base URI.
+     */
+    public function deletePageVariants(string $siteHost, string $uri): void
+    {
+        $dir = dirname($this->pagePath($siteHost, $uri));
+
+        if (!is_dir($dir)) {
+            return;
+        }
+
+        foreach (['__page', '__qs'] as $segment) {
+            $target = $dir . '/' . $segment;
+            if (is_dir($target)) {
+                try {
+                    FileHelper::removeDirectory($target);
+                } catch (\Throwable $e) {
+                    Craft::error('Failed clearing Blazing Cache variants at ' . $target . ': ' . $e->getMessage(), __METHOD__);
+                }
+            }
+        }
+    }
+
     public function clearHost(string $siteHost): bool
     {
         $target = $this->cachePath . '/' . $this->sanitizeHost($siteHost);
