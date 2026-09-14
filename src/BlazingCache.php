@@ -251,6 +251,7 @@ class BlazingCache extends Plugin
                 foreach ($dependencies as $uri) {
                     $uri = $this->normalizeDependencyUri((string) $uri);
                     $this->cacheService()->deletePage($host, $uri);
+                    $this->cacheService()->deletePageVariants($host, $uri);
                     $urlsToPurge[] = $this->buildAbsoluteUrl($baseUrl, $uri);
                 }
             }
@@ -691,58 +692,39 @@ class BlazingCache extends Plugin
         $path = trim($request->getPathInfo(), '/');
         $path = $path === '' ? 'index' : $path;
 
-        // Extract page number from path segments and query params
-        $pageNumber = $this->extractPageNumber($request, $path);
-        
-        // Remove page segments from path if they exist
+        // Craft has already stripped the pagination trigger from pathInfo, and resolves
+        // the page number here (supports "/p2", "/page/2", and query-string triggers).
+        $pageNumber = method_exists($request, 'getPageNum') ? $request->getPageNum() : 1;
+
         if ($pageNumber > 1) {
-            $path = preg_replace('~/p\d+$~', '', $path);
+            // Defensive: normally a no-op because Craft already stripped the trigger.
+            $path = preg_replace('~/p' . $pageNumber . '$~', '', $path);
             if ($path === '') {
                 $path = 'index';
             }
         }
 
         $queryParams = $request->getQueryParams();
-        $pathParam = Craft::$app->getConfig()->getGeneral()->pathParam ?? 'p';
-        unset($queryParams[$pathParam]);
-        unset($queryParams['page']); // Remove page query param if present
+        $general = Craft::$app->getConfig()->getGeneral();
+
+        // Don't let routing/pagination params leak into the query hash.
+        unset($queryParams[$general->pathParam ?? 'p']);
+        $pageTrigger = $general->getPageTrigger();
+        if (is_string($pageTrigger) && str_starts_with($pageTrigger, '?')) {
+            unset($queryParams[trim($pageTrigger, '?=')]);
+        }
+        unset($queryParams['page']);
 
         if ($queryParams) {
             $normalized = $this->normalizeQueryParams($queryParams);
-            $hash = md5(http_build_query($normalized));
-            $path .= '/__qs/' . $hash;
+            $path .= '/__qs/' . md5(http_build_query($normalized));
         }
 
-        // Append page number to cache key only when page > 1
         if ($pageNumber > 1) {
             $path .= '/__page/' . $pageNumber;
         }
 
         return $path;
-    }
-
-    /**
-     * Extract page number from request path segments or query parameters.
-     * Handles pagination patterns like /p2, /p3 or query params like ?page=2
-     *
-     * @return int Page number, defaults to 1 if not paginated
-     */
-    private function extractPageNumber(Request $request, string $path): int
-    {
-        $pageNumber = 1;
-
-        // Check for page segment in path (e.g., /archive/p2)
-        if (preg_match('~/p(\d+)$~', $path, $matches)) {
-            $pageNumber = max($pageNumber, (int) $matches[1]);
-        }
-
-        // Check for page query parameter
-        $queryPage = $request->getQueryParam('page');
-        if ($queryPage !== null && is_numeric($queryPage)) {
-            $pageNumber = max($pageNumber, (int) $queryPage);
-        }
-
-        return $pageNumber;
     }
 
     private function normalizeQueryParams(array $params): array
